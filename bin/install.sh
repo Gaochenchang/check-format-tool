@@ -1,6 +1,6 @@
 #!/bin/bash
 set +x
-set +e
+# set +e
 
 required_python_version="3.6.9"
 required_xz_version="5.2.2"
@@ -9,19 +9,22 @@ required_libtinfo5_version="6.1"
 OS_TAG=""
 CHECK_TOOLS_PATH="$HOME/.esp_adf_check_tools"
 XZ_URL="https://tukaani.org/xz/xz-$required_xz_version.tar.gz"
-CLANG_FORMAT_16_URL="https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-f4f85437/clang-format-16_linux-amd64"
 
 function detect_os() {
     if [ -f /etc/os-release ]; then
         source /etc/os-release
         OS_TAG="$ID"
-        CLANG_FORMAT_16_URL="https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-f4f85437/clang-format-16_linux-amd64"
+        LLVM_LIST="/etc/apt/sources.list.d/llvm.list"
+        grep -qxF 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal main' "$LLVM_LIST" || \
+        echo 'deb http://apt.llvm.org/focal/ llvm-toolchain-focal main' | sudo tee -a "$LLVM_LIST"
+        grep -qxF 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main' "$LLVM_LIST" || \
+        echo 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic main' | sudo tee -a "$LLVM_LIST"
+        wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
         sudo apt-get update
     else
         os_type=$(uname)
         if [ "$os_type" == "Darwin" ]; then
             OS_TAG="macos"
-            CLANG_FORMAT_16_URL="https://github.com/muttleyxd/clang-tools-static-binaries/releases/download/master-f4f85437/clang-format-16_macosx-amd64"
         else
             OS_TAG="windows"
         fi
@@ -64,15 +67,23 @@ function version_compare() {
     fi
 }
 
-function install_requirements() {
-    if [ -n "$BASH_VERSION" ]; then
-        CURRENT_SHELL="$HOME/.bashrc"
-    elif [ -n "$ZSH_VERSION" ]; then
-        CURRENT_SHELL="$HOME/.zshrc"
-    else
-        echo "Unsupported shell"
-    fi
+function update_shell_profile() {
+    local CURRENT_SHELL="$1"
 
+    if [ -f "$CURRENT_SHELL" ]; then
+        # Check if the line is already present in the shell configuration
+        if grep -q "export CHECK_TOOLS_PATH=" "$CURRENT_SHELL"; then
+            # Line exists, replace the value after '=' with the new path
+            sed -i "s|export CHECK_TOOLS_PATH=.*|export CHECK_TOOLS_PATH=$CHECK_TOOLS_PATH|" "$CURRENT_SHELL"
+        else
+            echo "export CHECK_TOOLS_PATH=$CHECK_TOOLS_PATH" >> "$CURRENT_SHELL"
+        fi
+    else
+        echo -e "\033[33mWarning: $CURRENT_SHELL does not exist.\033[0m"
+    fi
+}
+
+function install_requirements() {
     # Get python version
     python_version=$(python3 --version 2>&1 | awk '/Python/ {print $2}')
     version_compare $python_version $required_python_version
@@ -85,6 +96,7 @@ function install_requirements() {
     check_and_install_tool "wget"
     check_and_install_tool "pip3"
     check_and_install_tool "dpkg"
+    check_and_install_tool "clang-format"; clang-format --version
     python3 -m pip install -r "$SCRIPT_PATH/requirements.txt"
 
     libtinfo5_version=$(dpkg -l | grep 'libtinfo5' | awk '{print $3}')
@@ -109,14 +121,8 @@ function install_requirements() {
         cd -
     fi
 
-    FILE_NAME="clang-format"
-    if ! command -v $FILE_NAME &>/dev/null || [[ "$($FILE_NAME --version | head -n 1)" != *"16.0"* ]]; then
-        if [ ! -f "$FILE_NAME" ]; then
-            wget -O $FILE_NAME $CLANG_FORMAT_16_URL
-        fi
-        chmod +x $FILE_NAME
-    fi
-    $FILE_NAME --version
+    update_shell_profile $HOME/.bashrc
+    update_shell_profile $HOME/.zshrc
 }
 
 detect_os

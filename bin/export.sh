@@ -4,8 +4,6 @@ set +x
 
 required_python_version="3.6.9"
 
-CHECK_TOOLS_PATH="$HOME/.esp_adf_check_tools"
-
 function die() {
     echo "${1:-"Unknown Error"}" 1>&2
     exit 1
@@ -33,6 +31,18 @@ function tool_configure() {
     else
         echo "Unsupported shell"
     fi
+    source $CURRENT_SHELL
+
+    shell_check_tools_path=$(grep "^export CHECK_TOOLS_PATH=" $CURRENT_SHELL | cut -d'=' -f2-)
+    if [ -n "$shell_check_tools_path" ]; then
+        if [ "$CHECK_TOOLS_PATH" != "$shell_check_tools_path" ]; then
+            echo 'Please run the command first: `./install.sh`'
+            return 1
+        fi
+    else
+        echo 'Please run the command first: `./install.sh`'
+        return 1
+    fi
 
     # Get python version
     alias python=python3
@@ -43,15 +53,8 @@ function tool_configure() {
     fi
     python_minor_ver=$(python3 -c "import sys; print(str(sys.version_info.major)+'.'+str(sys.version_info.minor))")
     export PYTHONPATH="$HOME/.local/lib/python$python_minor_ver/site-packages:$PYTHONPATH"
-
-    # Check if the line is already present in the shell configuration
-    if ! grep -q "export PATH=$CHECK_TOOLS_PATH:\$PATH" "$CURRENT_SHELL"; then
-        # Add the line to the shell configuration
-        echo "export PATH=$CHECK_TOOLS_PATH:\$PATH" >> "$CURRENT_SHELL"
-    fi
-
+    export PATH=$CHECK_TOOLS_PATH:$PATH
     export LD_LIBRARY_PATH=$CHECK_TOOLS_PATH:$LD_LIBRARY_PATH
-    source $CURRENT_SHELL
 }
 
 tool_configure
@@ -69,7 +72,7 @@ elif [ -e "$CHECK_REPO_PATH" ]; then
     cd -
 else
     echo -e "\033[91mPath does not exist.\033[0m"
-    return 1;
+    return 1
 fi
 
 echo -e "Notes: If you want to use this tool in other repositories, please use the following command to export CHECK_REPO_PATH"

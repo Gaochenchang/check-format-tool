@@ -181,8 +181,8 @@ Close https://xxxx
 
 ### 1.4.1 component_name 具体要求
 
-1. 为 audio_stream, audio_board, examples, docs, ci, ut, 等。
-2. 除下方特殊的组件之外，其余组件为 components 下的一级目录名称与 submodules 的名称。
+1. 为 audio_stream, audio_board, examples, docs, ci, ut, esp-idf, esp-adf-libs 等。
+2. 除下方特殊的组件之外，其余组件为 $ADF_PATH/components 下的一级目录名称与 submodules 的名称。
 3. special_components = ["ci", "ut", "docs", "tools", "examples"]
 
 ### 1.4.2 commit message 具体要求
@@ -197,7 +197,7 @@ Close https://xxxx
 
 ## 1.5 code style 格式
 
-otbs（One True Brace Style） 风格。
+esp-adf 使用风格与 esp-idf 相同，为 otbs（One True Brace Style） 风格。
 
 ```shell
 # 示例
@@ -211,7 +211,7 @@ int Foo(bool isBar)
     }
 } 
 ```
-clang-format 工具的原始用法如下
+clang-format 工具的原始用法如下(不建议大家使用原始工具，其无法满足 ADF 代码风格)
 ```shell
 clang-format -style='file:.clang-format' -lines=<start_line>:<end_line> -i <file_path>
 ```
